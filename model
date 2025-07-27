@@ -1,0 +1,168 @@
+from tensorflow.keras.preprocessing.image import load_img, img_to_array
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow import keras
+from tensorflow.keras.layers import Activation, Conv2D, Dense, Dropout, Flatten, MaxPooling2D, BatchNormalization
+from tensorflow.keras.models import Sequential, load_model
+from tensorflow.keras.utils import to_categorical
+from tensorflow.keras import optimizers
+from tensorflow.keras.optimizers.schedules import ExponentialDecay
+from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+from PIL import Image
+import numpy as np
+import pandas as pd
+import os
+import tensorflow as tf
+from sklearn.metrics import precision_score
+
+
+#データセットの画像データとラベル(インデックス)の読み込み関数
+def load_images(folder_paths):
+    x_data = []
+    y_data = []
+    
+    #読み込み
+    for index, folder_path in enumerate(folder_paths):
+        for filename in os.listdir(folder_path):
+            img_path = os.path.join(folder_path, filename)
+            img = Image.open(img_path)
+            
+            color_img = img.convert("RGB")#カラー変換
+            resized_img = color_img.resize((80, 80))#リサイズ
+            #float32型に変換し、0から1の範囲に正規化
+            img_array = np.array(resized_img, dtype=np.float32)/255.0
+            
+            x_data.append(img_array)
+            y_data.append(index)
+            
+    return np.array(x_data), np.array(y_data)
+
+
+#データセット
+folder_train = ["car_train", "taxi_train", "motor bike_train"]
+folder_valid = ["car_valid", "taxi_valid", "motor bike_valid"]
+folder_test = ["car_test2", "taxi_test2", "motor bike_test2"]
+
+
+#訓練データの読み込み
+x_train, y_train = load_images(folder_train)
+y_train = to_categorical(y_train)#ラベルをone-hot表現に変換
+
+#バリデーションデータの読み込み
+x_valid, y_valid = load_images(folder_valid)
+y_valid = to_categorical(y_valid)
+
+#テストデータの読み込み
+x_test, y_test = load_images(folder_test)
+y_test = to_categorical(y_test)
+
+
+#モデル
+model = Sequential()
+#第1層
+model.add(Conv2D(input_shape = (80, 80, 3),
+                 filters = 20,
+                 kernel_size = (3, 3),
+                 strides = (1, 1),
+                 padding = "same"))
+model.add(BatchNormalization())
+model.add(Activation('relu'))
+model.add(MaxPooling2D(pool_size=(2, 2)))
+#第2層
+model.add(Conv2D(filters = 20,
+                kernel_size = (3, 3),
+                strides = (1, 1),
+                padding = "same"))
+model.add(BatchNormalization())
+model.add(Activation('relu'))
+model.add(MaxPooling2D(pool_size=(2, 2)))
+#第3層
+model.add(Conv2D(filters = 20,
+                 kernel_size = (3, 3),
+                 strides = (1, 1),
+                 padding = "same"))
+model.add(BatchNormalization())
+model.add(Activation('relu'))
+#第4層
+model.add(Flatten())
+model.add(Dense(256))
+model.add(BatchNormalization())
+model.add(Activation('relu'))
+#第5層
+model.add(Dense(128))
+model.add(BatchNormalization())
+model.add(Activation('relu'))
+#出力層
+model.add(Dense(3))
+model.add(Activation('softmax'))
+
+
+#損失関数(公差エントロピー)
+def cross_entropy(y_true, y_pred):
+    loss = tf.keras.losses.categorical_crossentropy(y_true, y_pred, label_smoothing=0.1)
+    return loss
+
+
+# 学習率の初期値
+initial_learning_rate = 0.1
+
+# 学習率の減衰スケジュールの設定
+lr_schedule = ExponentialDecay(
+    initial_learning_rate, decay_steps=5, decay_rate=0.5, staircase=True
+)
+
+sgd = optimizers.SGD(learning_rate = lr_schedule)#最適化アルゴリズムに確率的勾配降下法を指定
+model.compile(optimizer = 'sgd',
+             loss = cross_entropy,
+             metrics = ['accuracy'])
+
+
+#学習
+history = model.fit(x_train, y_train, 
+                    batch_size = 100, 
+                    epochs = 30, 
+                    validation_data = (x_valid, y_valid))
+
+
+#テストデータに対する精度評価
+accuracy = model.evaluate(x_test, y_test, verbose=0)
+print('accuracy : ')
+print(accuracy)
+
+
+#グラフ化
+plt.plot(history.history['accuracy'], label='acc', ls='-', marker='o') 
+plt.plot(history.history['val_accuracy'], label='val_acc', ls='-', marker='x')  
+plt.title('Model Evaluaton', fontsize=14)
+plt.xlabel('epoch') 
+plt.ylabel('accuracy')
+plt.legend(['acc', 'val_acc'])
+plt.grid(color='gray', alpha=0.1) 
+plt.show() 
+
+plt.plot(history.history['loss'], label='loss', ls='-', marker='o') 
+plt.plot(history.history['val_loss'], label='val_loss', ls='-', marker='x') 
+plt.title('Model Evaluaton', fontsize=14) 
+plt.xlabel('epoch') 
+plt.ylabel('loss')  
+plt.legend(['loss', 'val_loss']) 
+plt.grid(color='gray') 
+plt.show()
+
+    
+    
+    
+#LIME
+from skimage.segmentation import felzenszwalb
+from skimage import color
+
+rgb_image = x_test[52]
+
+explainer = lime_image.LimeImageExplainer()
+explainer.segmentation_fn = felzenszwalb
+
+explanation = explainer.explain_instance(rgb_image, model.predict, top_labels=1, hide_color=0, num_samples=1000)
+
+temp, mask = explanation.get_image_and_mask(explanation.top_labels[0], positive_only=True, num_features=5, hide_rest=True)
+plt.imshow(mark_boundaries(temp / 2 + 0.5, mask))
+plt.show()
