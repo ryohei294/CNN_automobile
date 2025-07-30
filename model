@@ -22,15 +22,15 @@ def load_images(folder_paths):
     y_data = []
     
     #読み込み
-    for index, folder_path in enumerate(folder_paths):
-        for filename in os.listdir(folder_path):
-            img_path = os.path.join(folder_path, filename)
+    for index, folder_path in enumerate(folder_paths): #enumerate関数を使うことで、インデックスと要素をそれぞれ取り出す　例)car:0, taxi:1, motor_bike:2
+        for filename in os.listdir(folder_path): #folder_path内のファイルを順番に取り出して処理
+            img_path = os.path.join(folder_path, filename) #フォルダ名とファイル名を結合してフルパスを取得　例)car/img_car1.png
             img = Image.open(img_path)
             
             color_img = img.convert("RGB")#カラー変換
             resized_img = color_img.resize((80, 80))#リサイズ
             #float32型に変換し、0から1の範囲に正規化
-            img_array = np.array(resized_img, dtype=np.float32)/255.0
+            img_array = np.array(resized_img, dtype=np.float32)/255.0 #img_array.shape = (80, 80, 3)
             
             x_data.append(img_array)
             y_data.append(index)
