@@ -106,13 +106,6 @@ model.add(Activation('relu'))
 model.add(Dense(3))
 model.add(Activation('softmax'))
 
-
-#損失関数(公差エントロピー)
-def cross_entropy(y_true, y_pred):
-    loss = tf.keras.losses.categorical_crossentropy(y_true, y_pred, label_smoothing=0.1)
-    return loss
-
-
 # 学習率の初期値
 initial_learning_rate = 0.1
 
